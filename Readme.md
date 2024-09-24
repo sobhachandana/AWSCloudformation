@@ -5,7 +5,7 @@ This CloudFormation template deploys a highly available Virtual Private Cloud (V
 
 ## Architecture Overview
 
-![Highly Available VPC for a Three-Tier Architecture](./architecture.png)
+![Highly Available VPC for a Three-Tier Architecture](./CIS-AWS-LandingZone.png)
 
 The CloudFormation template provisions the following resources:
 
@@ -27,7 +27,7 @@ Before deploying this CloudFormation template, ensure you have the following pre
 To deploy this CloudFormation template, follow these steps:
 
 1. Clone or download the repository containing the CloudFormation template.
-2. Modify the template parameters if needed by editing the `template.yaml` file.
+2. Modify the template parameters if needed by editing the `three-tier-vpc.yaml` file.
 3. Deploy the CloudFormation stack using one of the following methods:
    - AWS CLI: Run the command `aws cloudformation create-stack` or `aws cloudformation deploy` with appropriate parameters.
    - AWS Management Console: Upload the template to the CloudFormation service and follow the guided deployment process.

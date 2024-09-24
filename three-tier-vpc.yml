@@ -12,28 +12,39 @@ Parameters:
   WebSubnetACIDR:
     Description: Please insert the IP range for the public Web subnet in Availability Zone A
     Type: String
-    Default: 10.16.0.0/19
+    Default: 10.16.0.0/22
   AppSubnetACIDR:
     Description: Please insert the IP range for the private App subnet in Availability Zone A
     Type: String
-    Default: 10.16.32.0/19
+    Default: 10.16.4.0/22
   DBSubnetACIDR:
     Description: Please insert the IP range for the private DB subnet in Availability Zone A
     Type: String
-    Default: 10.16.64.0/19
+    Default: 10.16.8.0/22
   WebSubnetBCIDR:
     Description: Please insert the IP range for the public Web subnet in Availability Zone B
     Type: String
-    Default: 10.16.128.0/19
+    Default: 10.16.12.0/22
   AppSubnetBCIDR:
     Description: Please insert the IP range for the private App subnet in Availability Zone B
     Type: String
-    Default: 10.16.160.0/19
+    Default: 10.16.16.0/22
   DBSubnetBCIDR:
     Description: Please insert the IP range for the private DB subnet in Availability Zone B
     Type: String
-    Default: 10.16.192.0/19
-
+    Default: 10.16.20.0/22
+  WebSubnetCCIDR:
+    Description: Please insert the IP range for the public Web subnet in Availability Zone B
+    Type: String
+    Default: 10.16.24.0/22
+  AppSubnetCIDR:
+    Description: Please insert the IP range for the private App subnet in Availability Zone B
+    Type: String
+    Default: 10.16.28.0/22
+  DBSubnetCCIDR:
+    Description: Please insert the IP range for the private DB subnet in Availability Zone B
+    Type: String
+    Default: 10.16.32.0/22
 
 
 Resources:
@@ -76,6 +87,12 @@ Resources:
     Properties:
       Domain: vpc
 
+  NatGatewayEIPC:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+      
   # NAT Gateways
   NatGatewayA:
     Type: AWS::EC2::NatGateway
@@ -88,7 +105,12 @@ Resources:
     Properties:
       AllocationId: !GetAtt NatGatewayEIPB.AllocationId
       SubnetId: !Ref WebSubnetB
-
+      
+  NatGatewayC:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGatewayEIPC.AllocationId
+      SubnetId: !Ref WebSubnetC
 
   # Subnets AZ-A
   WebSubnetA:
@@ -154,6 +176,38 @@ Resources:
         - Key: Name
           Value: !Sub ${EnvironmentName}_DB_B
 
+  # Subnets AZ-C
+  WebSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref WebSubnetCCIDR
+      MapPublicIpOnLaunch: True
+      AvailabilityZone:  !Select [ 1, !GetAZs '' ]
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}_Web_C
+  AppSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref AppSubnetCCIDR
+      MapPublicIpOnLaunch: False
+      AvailabilityZone:  !Select [ 1, !GetAZs '' ]
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}_App_C
+  DBSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref DBSubnetCCIDR
+      MapPublicIpOnLaunch: False
+      AvailabilityZone:  !Select [ 1, !GetAZs '' ]
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}_DB_C
+          
   # Route Tables
   WebRouteTable:
     Type: AWS::EC2::RouteTable
@@ -179,6 +233,14 @@ Resources:
         - Key: Name
           Value: !Sub ${EnvironmentName}_AppRT_AZB
 
+  AppRouteTableC:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}_AppRT_AZC
+
   DBRouteTableA:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -195,6 +257,14 @@ Resources:
         - Key: Name
           Value: !Sub ${EnvironmentName}_DBRT_AZB
 
+  DBRouteTableC:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentName}_DBRT_AZC
+          
   # Routes
   
   AppSubnetARoute:
@@ -211,6 +281,13 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NatGatewayB
 
+  AppSubnetCRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref AppRouteTableC
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayC
+
   DBSubnetARoute:
     Type: AWS::EC2::Route
     Properties:
@@ -225,6 +302,13 @@ Resources:
       DestinationCidrBlock: 0.0.0.0/0
       NatGatewayId: !Ref NatGatewayB
 
+  DBSubnetCRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref DBRouteTableC
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayC
+
   WebSubnetRouteTableAssociationA:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -236,6 +320,12 @@ Resources:
     Properties:
       RouteTableId: !Ref WebRouteTable
       SubnetId: !Ref WebSubnetB
+
+  WebSubnetRouteTableAssociationC:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref WebRouteTable
+      SubnetId: !Ref WebSubnetC
 
   AppSubnetRouteTableAssociationA:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -249,6 +339,12 @@ Resources:
       RouteTableId: !Ref AppRouteTableB
       SubnetId: !Ref AppSubnetB
 
+  AppSubnetRouteTableAssociationC:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref AppRouteTableC
+      SubnetId: !Ref AppSubnetC
+
   DBSubnetRouteTableAssociationA:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -261,6 +357,12 @@ Resources:
       RouteTableId: !Ref DBRouteTableB
       SubnetId: !Ref DBSubnetB
 
+  DBSubnetRouteTableAssociationC:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref DBRouteTableC
+      SubnetId: !Ref DBSubnetC
+
 Outputs:
   VPC:
     Description: VPC
@@ -271,27 +373,42 @@ Outputs:
   NATGatewayB:
     Description: NAT Gateway B
     Value: !Ref NatGatewayB
+  NATGatewayC:
+    Description: NAT Gateway C
+    Value: !Ref NatGatewayC    
   AvailabilityZoneA:
     Description: Availability Zone A
     Value: !GetAtt WebSubnetA.AvailabilityZone
   AvailabilityZoneB:
     Description: Availability Zone B
     Value: !GetAtt WebSubnetB.AvailabilityZone
+  AvailabilityZoneC:
+    Description: Availability Zone C
+    Value: !GetAtt WebSubnetB.AvailabilityZone  
   WebSubnetA:
     Description: Web Subnet Availability Zone A
     Value: !Ref WebSubnetA
   WebSubnetB:
     Description: Web Subnet Availability Zone B
     Value: !Ref WebSubnetB
+  WebSubnetC:
+    Description: Web Subnet Availability Zone C
+    Value: !Ref WebSubnetC    
   AppSubnetA:
     Description: App Subnet Availability Zone A
     Value: !Ref AppSubnetA
   AppSubnetB:
     Description: App Subnet Availability Zone B
     Value: !Ref AppSubnetB
+  AppSubnetC:
+    Description: App Subnet Availability Zone C
+    Value: !Ref AppSubnetC    
   DBSubnetA:
     Description: DB Subnet Availability Zone A
     Value: !Ref DBSubnetA
   DBSubnetB:
     Description: DB Subnet Availability Zone B
     Value: !Ref DBSubnetB
+  DBSubnetC:
+    Description: DB Subnet Availability Zone C
+    Value: !Ref DBSubnetC
